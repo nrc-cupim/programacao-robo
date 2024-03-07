@@ -7,16 +7,16 @@
 #define VELOCIDADE_MOTOR_DIREITO 33
 
 #define PINO_ARMA_1 32
-#define PINO_ARMA_2 15
+#define PINO_ARMA_2 17
 
 const int16_t toleranciaAnalogico = 20;
 const int parado = 0, horario = 1, antihorario = 2;
-const unsigned long tempoInversao = 1200;
+const unsigned long tempoInversao = 700;
 
 ControllerPtr myControllers[1];
 
 bool roboLigado;
-int sentido;
+int sentidoY, sentidoX;
 
 void desligaRobo() {
   digitalWrite(PINO_ARMA_1, LOW);
@@ -28,7 +28,7 @@ void desligaRobo() {
   analogWrite(VELOCIDADE_MOTOR_DIREITO, 0);
 
   roboLigado = false;
-  sentido = parado;
+  sentidoX = parado, sentidoY = parado;
 }
 
 // Função para conctar o controle e garantir que somente um controle se conecte
@@ -94,13 +94,13 @@ void processControllers() {
         uint16_t botoesPressionados = myController->buttons();
 
         if (botoesPressionados == 0x0001) {  // se pressionou apenas X
-          digitalWrite(PINO_ARMA_1, LOW);      // liga arma
-          digitalWrite(PINO_ARMA_2, LOW); 
+          digitalWrite(PINO_ARMA_1, LOW);    // liga arma
+          digitalWrite(PINO_ARMA_2, LOW);
           Serial.print("Arma desligada ");
         }
 
         else if (botoesPressionados == 0x0008) {  // se pressionou apenas TRIÂNGULO
-          digitalWrite(PINO_ARMA_1, HIGH);          // liga arma
+          digitalWrite(PINO_ARMA_1, HIGH);        // liga arma
           digitalWrite(PINO_ARMA_2, HIGH);
           Serial.print("Arma ligada ");
         }
@@ -122,13 +122,16 @@ void processControllers() {
 
         if (valorAnalogicoDireito > toleranciaAnalogico) {  // Ir para frente
 
-          if (sentido == antihorario) {
-            sentido = horario;
+          digitalWrite(SENTIDO_MOTOR_DIREITO, HIGH);
+          digitalWrite(SENTIDO_MOTOR_ESQUERDO, HIGH);
+
+          if (sentidoY == antihorario) {
+            analogWrite(VELOCIDADE_MOTOR_DIREITO, 255);
+            analogWrite(VELOCIDADE_MOTOR_ESQUERDO, 255);
             delay(tempoInversao);
           }
 
-          digitalWrite(SENTIDO_MOTOR_ESQUERDO, HIGH);
-          digitalWrite(SENTIDO_MOTOR_DIREITO, HIGH);
+          sentidoY = horario;
 
           if (valorAnalogicoEsquerdo > toleranciaAnalogico) {
             pwmMotorDireito = map(valorAnalogicoDireito - valorAnalogicoEsquerdo, -512, 512, 255, 0);
@@ -148,8 +151,16 @@ void processControllers() {
 
         else if (valorAnalogicoDireito < -toleranciaAnalogico) {  // Ir para tras
 
-          digitalWrite(SENTIDO_MOTOR_ESQUERDO, LOW);
           digitalWrite(SENTIDO_MOTOR_DIREITO, LOW);
+          digitalWrite(SENTIDO_MOTOR_ESQUERDO, LOW);
+
+          if (sentidoY == horario) {
+            analogWrite(VELOCIDADE_MOTOR_DIREITO, 0);
+            analogWrite(VELOCIDADE_MOTOR_ESQUERDO, 0);
+            delay(tempoInversao);
+          }
+
+          sentidoY = antihorario;
 
           if (valorAnalogicoEsquerdo > toleranciaAnalogico) {
             pwmMotorDireito = map(valorAnalogicoEsquerdo + valorAnalogicoDireito, -512, 512, 0, 255);
@@ -170,15 +181,33 @@ void processControllers() {
         else {
 
           if (valorAnalogicoEsquerdo > toleranciaAnalogico) {
-            digitalWrite(SENTIDO_MOTOR_ESQUERDO, HIGH);
+
             digitalWrite(SENTIDO_MOTOR_DIREITO, LOW);
+            digitalWrite(SENTIDO_MOTOR_ESQUERDO, HIGH);
+
+            if (sentidoX == antihorario) {
+              analogWrite(VELOCIDADE_MOTOR_DIREITO, 0);
+              analogWrite(VELOCIDADE_MOTOR_ESQUERDO, 255);
+              delay(tempoInversao);
+            }
+
+            sentidoX = horario;
             pwmMotorDireito = map(valorAnalogicoEsquerdo, toleranciaAnalogico, 512, 0, 255);
             pwmMotorEsquerdo = map(valorAnalogicoEsquerdo, toleranciaAnalogico, 512, 255, 0);
           }
 
           else if (valorAnalogicoEsquerdo < -toleranciaAnalogico) {
-            digitalWrite(SENTIDO_MOTOR_ESQUERDO, LOW);
+
             digitalWrite(SENTIDO_MOTOR_DIREITO, HIGH);
+            digitalWrite(SENTIDO_MOTOR_ESQUERDO, LOW);
+
+            if (sentidoX == horario) {
+              analogWrite(VELOCIDADE_MOTOR_DIREITO, 255);
+              analogWrite(VELOCIDADE_MOTOR_ESQUERDO, 0);
+              delay(tempoInversao);
+            }
+
+            sentidoX = antihorario;
             pwmMotorDireito = map(valorAnalogicoEsquerdo, -toleranciaAnalogico, -512, 255, 0);
             pwmMotorEsquerdo = map(valorAnalogicoEsquerdo, -toleranciaAnalogico, -512, 0, 255);
           }
@@ -210,7 +239,7 @@ void setup() {
 
   BP32.setup(&onConnectedController, &onDisconnectedController);
   BP32.enableVirtualDevice(false);
-  //BP32.forgetBluetoothKeys();
+  BP32.forgetBluetoothKeys();
 
   pinMode(SENTIDO_MOTOR_ESQUERDO, OUTPUT);
   pinMode(VELOCIDADE_MOTOR_ESQUERDO, OUTPUT);
