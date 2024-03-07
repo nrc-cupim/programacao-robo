@@ -7,7 +7,7 @@
 #define VELOCIDADE_MOTOR_DIREITO 33
 
 #define PINO_ARMA_1 32
-#define PINO_ARMA_2 17
+#define PINO_ARMA_2 17  // TX2
 
 const int16_t toleranciaAnalogico = 20;
 const int parado = 0, horario = 1, antihorario = 2;
